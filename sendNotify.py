@@ -1,106 +1,60 @@
 #!/usr/bin/env python3
-# _*_ coding:utf-8 _*_
+# -*- coding:utf-8 -*-
 
 import os
 import requests
-import json
-import urllib.parse
 
-# 通知服务配置
-SCKEY = os.getenv("SCKEY", "")  # Server酱的SCKEY
-XZKEY = os.getenv("XZKEY", "")  # 息知的XZKEY
-PUSH_PLUS_TOKEN = os.getenv("PUSH_PLUS_TOKEN", "")  # PushPlus的TOKEN
+# Telegram 通知服务配置
+TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN", "")  # 你的 Telegram Bot Token
+TG_CHAT_ID = os.getenv("TG_CHAT_ID", "")      # 接收消息的 Chat ID
 
-# 消息容器
-message_info = ''''''
-
-def serverJ(title, content):
-    """Server酱通知"""
-    if not SCKEY:
-        print("Server酱的SCKEY未设置")
+def telegram_bot(title: str, content: str):
+    """Telegram 机器人通知"""
+    if not TG_BOT_TOKEN or not TG_CHAT_ID:
         return
     
-    print("Server酱服务启动")
+    print("Telegram 推送服务启动")
+    url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
+    
+    # 使用 HTML 格式拼接标题和内容，使标题加粗展示
+    message_text = f"<b>{title}</b>\n\n{content}"
+    
     data = {
-        "text": title,
-        "desp": content.replace("\n", "\n\n")
+        "chat_id": TG_CHAT_ID,
+        "text": message_text,
+        "parse_mode": "HTML",         # 允许使用简单的 HTML 标签格式化文本
+        "disable_web_page_preview": True # 禁用链接预览（可选）
     }
-    response = requests.post(f"https://sctapi.ftqq.com/{SCKEY}.send", data=data).json()
-    if response.get('code') == 0 or response.get('data', {}).get('errno') == 0:
-        print('Server酱推送成功！')
-    else:
-        print('Server酱推送失败！')
-
-def xizhi(title, content):
-    """息知通知"""
-    if not XZKEY:
-        print("息知的XZKEY未设置")
-        return
     
-    print("息知服务启动")
-    headers = {'Content-Type': 'application/json'}
-    json_data = {
-        'title': title,
-        'content': content.replace("\n", "\n\n")
-    }
-    data = json.dumps(json_data).encode('utf-8')
     try:
-        response = requests.post(f"https://xizhi.qqoq.net/{XZKEY}.send", data=data, headers=headers)
-        if response.status_code == 200:
-            print('息知推送成功！')
-        else:
-            print(f'息知推送失败，状态码: {response.status_code}')
-    except Exception as e:
-        print(f'息知推送失败: {str(e)}')
-
-def pushplus_bot(title, content):
-    """PushPlus通知"""
-    if not PUSH_PLUS_TOKEN:
-        print("PushPlus的TOKEN未设置")
-        return
-    
-    print("PushPlus服务启动")
-    url = 'http://www.pushplus.plus/send'
-    data = {
-        "token": PUSH_PLUS_TOKEN,
-        "title": title,
-        "content": content
-    }
-    headers = {'Content-Type': 'application/json'}
-    try:
-        response = requests.post(url, json=data, headers=headers)
+        # 增加 timeout 防止网络阻塞
+        response = requests.post(url, json=data, timeout=10)
         result = response.json()
-        if result.get('code') == 200:
-            print('PushPlus推送成功！')
+        
+        if result.get("ok"):
+            print('Telegram 推送成功！')
         else:
-            print(f'PushPlus推送失败: {result.get("msg", "未知错误")}')
+            print(f"Telegram 推送失败: {result.get('description', '未知错误')}")
     except Exception as e:
-        print(f'PushPlus推送失败: {str(e)}')
+        print(f"Telegram 推送异常: {str(e)}")
 
-def send(title, content):
+def send(title: str, content: str):
     """
     发送通知
     :param title: 通知标题
     :param content: 通知内容
     """
-    # 记录日志
     print(f"通知标题: {title}")
-    print(f"通知内容:\n{content}")
+    print(f"通知内容:\n{content}\n" + "-"*20)
     
-    # 依次尝试三种通知方式
-    if SCKEY:
-        serverJ(title, content)
-    
-    if XZKEY:
-        xizhi(title, content)
-    
-    if PUSH_PLUS_TOKEN:
-        pushplus_bot(title, content)
-    
-    # 如果没有设置任何通知方式
-    if not SCKEY and not XZKEY and not PUSH_PLUS_TOKEN:
-        print("未配置任何通知方式，跳过通知发送")
+    # 检查是否配置了必要的环境变量
+    if not TG_BOT_TOKEN or not TG_CHAT_ID:
+        print("未配置 Telegram 的 TOKEN 或 CHAT_ID 环境变量，跳过通知发送。")
+        return
+
+    # 发送 Telegram 通知
+    telegram_bot(title, content)
 
 if __name__ == '__main__':
     # 测试通知
-    send("测试通知", "这是一条测试通知消息")
+    send("🚨 服务器警报", "这是一条来自 Python 脚本的 Telegram 测试通知消息。\n可以自由换行。")
